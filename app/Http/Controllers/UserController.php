@@ -16,7 +16,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(),
         [
-            'full_name' => 'required|string|max:50',
+            'full_name' => 'required|string|max:50|min:10',
             'email' => 'required|string|email|unique:users',
             'password' => 'required|string|min:8',
             'cpf_cnpj' => 'required|string|min:11|max:11|unique:users',
@@ -48,9 +48,28 @@ class UserController extends Controller
 
         if($validator->fails())
         {
-            return $this->error('Data Invalid', 422, $validator->errors());
+            return $this->error('Data Invalid xD', 422, $validator->errors());
         }
 
-        return $this->response('Success', 200);
+        $validated_data = $validator->validated();
+
+        //dd(User::where('cpf_cnpj', $cpf)->get()->all());
+
+        $updated = User::where('cpf_cnpj', $cpf)->update([
+            'balance' => $validated_data['balance']
+        ]);
+
+        if($updated)
+        {
+            return $this->response('Success', 200);
+        }
+
+        $error = 
+        [
+            'errors' => 'cpf invalido'
+        ];
+
+        return $this->error('Data Invalid', 422, $error);
+
     }
 }
