@@ -64,10 +64,7 @@ class UserController extends Controller
             return $this->response('Success', 200);
         }
 
-        $error = 
-        [
-            'errors' => 'cpf invalido'
-        ];
+        $error = ['errors' => 'cpf invalido'];
 
         return $this->error('Data Invalid', 422, $error);
 
