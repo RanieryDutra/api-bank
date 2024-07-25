@@ -8,6 +8,10 @@ use App\Traits\HttpResponses;
 use App\Models\User;
 use App\Models\Transfer;
 use Carbon\Carbon;
+use GuzzleHttp\Client;
+
+use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 
 class TransferController extends Controller
 {
@@ -30,12 +34,58 @@ class TransferController extends Controller
         $cpf_sender = $request->all()['cpf_sender'];
         $cpf_receiver = $request->all()['cpf_receiver'];
         
-        $id_sender = User::where('cpf_cnpj', $cpf_sender)->first()->id;
-        $id_receiver = User::where('cpf_cnpj', $cpf_receiver)->first()->id;
+        $sender = User::where('cpf_cnpj', $cpf_sender)->first();
+        $receiver = User::where('cpf_cnpj', $cpf_receiver)->first();
+
+        $client = new Client();
+        $url = 'https://util.devi.tools/api/v2/authorize';
+        try {
+            // Fazer a requisição GET com o cabeçalho de autenticação
+            $response = $client->request('GET', $url, [
+                'headers' => [
+                    'Accept' => 'application/json'
+                ]
+            ]);
+
+            // Obter o corpo da resposta
+            $body = $response->getBody();
+            $content = $body->getContents();
+
+            // Decodificar o JSON
+            $data = json_decode($content, true);
+
+            // Verificar o que está vindo na resposta
+            return response()->json($data);
+
+        } catch (RequestException $e) {
+            // Capturar e tratar qualquer erro na requisição
+            if ($e->hasResponse()) {
+                // Obter o código de status da resposta
+                $statusCode = $e->getResponse()->getStatusCode();
+
+                // Retornar uma resposta amigável
+                return response()->json([
+                    'error' => 'Erro ao acessar a API externa.',
+                    'status' => $statusCode,
+                ], $statusCode);
+            }
+        };
+
+        if($sender->type == 'l')
+        {
+            $error_sender = ['erros' => 'Lojista não permitido realizar transferência.'];
+            return $this->error('Data Invalid', 422, $error_sender);
+        }
+        
+        if($sender->balance <= $validator->validate()['value'])
+        {
+            $error_balance = ['erros' => 'Saldo insuficiente.'];
+            return $this->error('Data Invalid', 422, $error_balance);
+        }
 
         $create_transfer = Transfer::create([
-            'user_id_sender' => $id_sender,
-            'user_id_receiver' => $id_receiver,
+            'user_id_sender' => $sender->id,
+            'user_id_receiver' => $receiver->id,
             'value' => $validator->validate()['value'],
             'transfer_date' => Carbon::now()
         ]);
