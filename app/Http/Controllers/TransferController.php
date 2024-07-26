@@ -39,6 +39,7 @@ class TransferController extends Controller
 
         $client = new Client();
         $url = 'https://util.devi.tools/api/v2/authorize';
+        $Authorization = '';
         try {
             // Fazer a requisição GET com o cabeçalho de autenticação
             $response = $client->request('GET', $url, [
@@ -47,27 +48,17 @@ class TransferController extends Controller
                 ]
             ]);
 
-            // Obter o corpo da resposta
-            $body = $response->getBody();
-            $content = $body->getContents();
-
-            // Decodificar o JSON
-            $data = json_decode($content, true);
-
-            // Verificar o que está vindo na resposta
-            return response()->json($data);
+            $Authorization = 'S';
 
         } catch (RequestException $e) {
-            // Capturar e tratar qualquer erro na requisição
-            if ($e->hasResponse()) {
-                // Obter o código de status da resposta
-                $statusCode = $e->getResponse()->getStatusCode();
 
-                // Retornar uma resposta amigável
-                return response()->json([
-                    'error' => 'Erro ao acessar a API externa.',
-                    'status' => $statusCode,
-                ], $statusCode);
+            if ($e->hasResponse())
+            {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $errorCode = $e->getResponse()->getReasonPhrase();
+                $erroAuth = ['error' => 'Falha na autorização'];
+
+                return $this->error($errorCode, $statusCode, $erroAuth);
             }
         };
 
