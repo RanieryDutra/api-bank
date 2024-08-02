@@ -37,21 +37,30 @@ class TransferController extends Controller
         $sender = User::where('cpf_cnpj', $cpf_sender)->first();
         $receiver = User::where('cpf_cnpj', $cpf_receiver)->first();
 
+        $balanceSender = $sender->balance - $validator->validate()['value'];
+        $balanceReceiver = $receiver->balance + $validator->validate()['value'];
+
+        dd($balanceSender, $balanceReceiver);
+
         $client = new Client();
         $url = 'https://util.devi.tools/api/v2/authorize';
-        $Authorization = '';
-        try {
-            // Fazer a requisição GET com o cabeçalho de autenticação
+
+        if($balanceSender < 0)
+        {
+            $error = ['error' => 'Balance sender is negative'];
+            return $this->error('Balance insufficient', 422, $error);
+        }
+
+        try
+        {
             $response = $client->request('GET', $url, [
                 'headers' => [
                     'Accept' => 'application/json'
                 ]
             ]);
 
-            $Authorization = 'S';
-
-        } catch (RequestException $e) {
-
+        } catch (RequestException $e) 
+        {
             if ($e->hasResponse())
             {
                 $statusCode = $e->getResponse()->getStatusCode();
@@ -74,12 +83,16 @@ class TransferController extends Controller
             return $this->error('Data Invalid', 422, $error_balance);
         }
 
+        
+
         $create_transfer = Transfer::create([
             'user_id_sender' => $sender->id,
             'user_id_receiver' => $receiver->id,
             'value' => $validator->validate()['value'],
-            'transfer_date' => Carbon::now()
+            'transfer_date' => Carbon::now('America/Sao_Paulo')
         ]);
+
+        //$balanceUser = User::where()
 
         if(!$create_transfer)
         {
