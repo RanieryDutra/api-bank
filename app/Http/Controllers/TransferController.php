@@ -40,10 +40,11 @@ class TransferController extends Controller
         $balanceSender = $sender->balance - $validator->validate()['value'];
         $balanceReceiver = $receiver->balance + $validator->validate()['value'];
 
-        dd($balanceSender, $balanceReceiver);
+        //dd($updateBalanceReceiver);
 
         $client = new Client();
-        $url = 'https://util.devi.tools/api/v2/authorize';
+        $urlAuthorize = 'https://util.devi.tools/api/v2/authorize';
+        $urlEmail = 'https://util.devi.tools/api/v1/notify';
 
         if($balanceSender < 0)
         {
@@ -53,11 +54,12 @@ class TransferController extends Controller
 
         try
         {
-            $response = $client->request('GET', $url, [
+            $responseAuthorize = $client->request('GET', $urlAuthorize, [
                 'headers' => [
                     'Accept' => 'application/json'
                 ]
             ]);
+            $responseAuthorize;
 
         } catch (RequestException $e) 
         {
@@ -66,6 +68,27 @@ class TransferController extends Controller
                 $statusCode = $e->getResponse()->getStatusCode();
                 $errorCode = $e->getResponse()->getReasonPhrase();
                 $erroAuth = ['error' => 'Falha na autorização'];
+
+                return $this->error($errorCode, $statusCode, $erroAuth);
+            }
+        };
+
+        try
+        {
+            $responseEmail = $client->request('POST', $urlEmail, [
+                'headers' => [
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            $responseEmail;
+
+        } catch (RequestException $e) 
+        {
+            if ($e->hasResponse())
+            {
+                $statusCode = $e->getResponse()->getStatusCode();
+                $errorCode = $e->getResponse()->getReasonPhrase();
+                $erroAuth = ['error' => 'Falha no envio do Email'];
 
                 return $this->error($errorCode, $statusCode, $erroAuth);
             }
@@ -83,7 +106,14 @@ class TransferController extends Controller
             return $this->error('Data Invalid', 422, $error_balance);
         }
 
-        
+        $update_balance_sender = User::where('cpf_cnpj', $cpf_sender)->update(['balance' => $balanceSender]);
+        $update_balance_receiver = User::where('cpf_cnpj', $cpf_receiver)->update(['balance' => $balanceReceiver]);
+
+        if(!$update_balance_sender || !$update_balance_receiver)
+        {
+            $erro = ['erros' => 'Erro atualização do saldo no usuário.'];
+            return $this->error('Error Transfer', 422, $erro);
+        }
 
         $create_transfer = Transfer::create([
             'user_id_sender' => $sender->id,
@@ -92,15 +122,15 @@ class TransferController extends Controller
             'transfer_date' => Carbon::now('America/Sao_Paulo')
         ]);
 
-        //$balanceUser = User::where()
-
         if(!$create_transfer)
         {
-            $erro = ['erros' => 'Erro na transferência'];
+            $erro = ['erros' => 'Erro na criação da transfêrencia.'];
             return $this->error('Error Transfer', 422, $erro);
         }
 
-        return $this->response('Success', 200);
+        $dataSuccess = [ 'value' => $validator->validate()['value'], 'cpf_sender' => $cpf_sender, 'cpf_receiver' => $cpf_receiver];
+
+        return $this->response('Transfer completed successfully', 200, $dataSuccess);
 
 
     }

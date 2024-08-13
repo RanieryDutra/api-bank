@@ -48,15 +48,15 @@ class UserController extends Controller
 
         if($validator->fails())
         {
-            return $this->error('Data Invalid xD', 422, $validator->errors());
+            return $this->error('Data Invalid', 422, $validator->errors());
         }
 
         $validated_data = $validator->validated();
 
-        //dd(User::where('cpf_cnpj', $cpf)->get()->all());
+        $balanceUser = User::where('cpf_cnpj', $cpf)->first()->balance + $validated_data['balance'];
 
         $updated = User::where('cpf_cnpj', $cpf)->update([
-            'balance' => $validated_data['balance']
+            'balance' => $balanceUser
         ]);
 
         if($updated)
